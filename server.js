@@ -1,112 +1,3 @@
-const express = require('express');
-const axios = require('axios');
-const fs = require('fs-extra');
-const { v4: uuidv4 } = require('uuid');
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.use(express.json());
-
-const DB_FILE = './keys.json';
-
-// CREATE DATABASE
-if (!fs.existsSync(DB_FILE)) {
-    fs.writeJsonSync(DB_FILE, []);
-}
-
-// LOAD KEYS
-function loadKeys() {
-    return fs.readJsonSync(DB_FILE);
-}
-
-// SAVE KEYS
-function saveKeys(keys) {
-    fs.writeJsonSync(DB_FILE, keys, { spaces: 2 });
-}
-
-// REMOVE EXPIRED KEYS
-function cleanExpiredKeys() {
-
-    const keys = loadKeys();
-
-    const now = Date.now();
-
-    const validKeys = keys.filter(k => k.expiry > now);
-
-    saveKeys(validKeys);
-}
-
-setInterval(cleanExpiredKeys, 60000);
-
-// VALIDATE KEY
-function validateKey(apiKey) {
-
-    cleanExpiredKeys();
-
-    const keys = loadKeys();
-
-    const found = keys.find(k => k.key === apiKey);
-
-    if (!found) {
-        return false;
-    }
-
-    return true;
-}
-
-// HOME PAGE
-app.get('/', (req, res) => {
-
-    res.json({
-        status: true,
-        message: 'VERNEX EMAIL API RUNNING',
-        api_by: 'VERNEX'
-    });
-
-});
-
-// GENERATE API KEY
-app.get('/generate-key', (req, res) => {
-
-    const duration = req.query.duration || '30d';
-
-    let ms = 30 * 86400000;
-
-    if (duration.endsWith('d')) {
-        ms = parseInt(duration) * 86400000;
-    }
-
-    if (duration.endsWith('h')) {
-        ms = parseInt(duration) * 3600000;
-    }
-
-    if (duration.endsWith('m')) {
-        ms = parseInt(duration) * 60000;
-    }
-
-    const apiKey = 'vernex-' + uuidv4().replace(/-/g, '').slice(0, 25);
-
-    const expiry = Date.now() + ms;
-
-    const keys = loadKeys();
-
-    keys.push({
-        key: apiKey,
-        expiry: expiry
-    });
-
-    saveKeys(keys);
-
-    res.json({
-        status: true,
-        api_key: apiKey,
-        expires_at: new Date(expiry).toISOString(),
-        api_by: 'VERNEX'
-    });
-
-});
-
 // EMAIL CLONE API
 app.get('/api/email', async (req, res) => {
 
@@ -138,17 +29,39 @@ app.get('/api/email', async (req, res) => {
             });
         }
 
-        // TAKE RESPONSE FROM ORIGINAL API
+        // GET ORIGINAL API RESPONSE
         const response = await axios.get(
             `https://ft-osint-api.duckdns.org/api/email?key=ft-rahun2m&email=${email}`
         );
 
-        const data = response.data;
+        let data = response.data;
 
-        // REMOVE ORIGINAL BRANDING
+        // REMOVE ALL FTGAMER2 BRANDING
         delete data.by;
         delete data.channel;
         delete data.from;
+        delete data.creator;
+        delete data.owner;
+
+        // REMOVE NESTED BRANDING
+        if (data.data) {
+
+            delete data.data.by;
+            delete data.data.channel;
+            delete data.data.from;
+            delete data.data.creator;
+            delete data.data.owner;
+
+        }
+
+        // CONVERT TO STRING AND REMOVE ANY LEFTOVER TEXT
+        let cleaned = JSON.stringify(data);
+
+        cleaned = cleaned.replace(/@ftgamer2/gi, '');
+        cleaned = cleaned.replace(/lynx_api/gi, '');
+        cleaned = cleaned.replace(/https:\\\/\\\/t\\.me\\\/lynx_api/gi, '');
+
+        data = JSON.parse(cleaned);
 
         // ADD YOUR BRANDING
         data.api_by = 'VERNEX';
@@ -166,49 +79,4 @@ app.get('/api/email', async (req, res) => {
 
     }
 
-});
-
-// LIST ALL KEYS
-app.get('/keys', (req, res) => {
-
-    cleanExpiredKeys();
-
-    const keys = loadKeys();
-
-    res.json({
-        total_keys: keys.length,
-        keys,
-        api_by: 'VERNEX'
-    });
-
-});
-
-// DELETE KEY
-app.get('/delete-key', (req, res) => {
-
-    const key = req.query.key;
-
-    if (!key) {
-        return res.json({
-            status: false,
-            message: 'Key required'
-        });
-    }
-
-    const keys = loadKeys();
-
-    const filtered = keys.filter(k => k.key !== key);
-
-    saveKeys(filtered);
-
-    res.json({
-        status: true,
-        message: 'Key deleted successfully',
-        api_by: 'VERNEX'
-    });
-
-});
-
-app.listen(PORT, () => {
-    console.log(`VERNEX EMAIL API running on port ${PORT}`);
 });
