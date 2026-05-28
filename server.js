@@ -60,7 +60,7 @@ app.get('/', (req, res) => {
 
     res.json({
         status: true,
-        message: 'EMAIL API RUNNING',
+        message: 'VERNEX EMAIL API RUNNING',
         api_by: 'VERNEX'
     });
 
@@ -148,6 +148,7 @@ app.get('/api/email', async (req, res) => {
         // REMOVE ORIGINAL BRANDING
         delete data.by;
         delete data.channel;
+        delete data.from;
 
         // ADD YOUR BRANDING
         data.api_by = 'VERNEX';
@@ -164,6 +165,47 @@ app.get('/api/email', async (req, res) => {
         });
 
     }
+
+});
+
+// LIST ALL KEYS
+app.get('/keys', (req, res) => {
+
+    cleanExpiredKeys();
+
+    const keys = loadKeys();
+
+    res.json({
+        total_keys: keys.length,
+        keys,
+        api_by: 'VERNEX'
+    });
+
+});
+
+// DELETE KEY
+app.get('/delete-key', (req, res) => {
+
+    const key = req.query.key;
+
+    if (!key) {
+        return res.json({
+            status: false,
+            message: 'Key required'
+        });
+    }
+
+    const keys = loadKeys();
+
+    const filtered = keys.filter(k => k.key !== key);
+
+    saveKeys(filtered);
+
+    res.json({
+        status: true,
+        message: 'Key deleted successfully',
+        api_by: 'VERNEX'
+    });
 
 });
 
