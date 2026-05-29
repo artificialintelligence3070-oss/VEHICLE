@@ -16,7 +16,10 @@ app.get("/vehicle", async (req, res) => {
     }
 
     const response = await axios.get(
-      `https://ft-osint-api.duckdns.org/api/vehicle?key=ft-rahun2m&vehicle=${vehicle}`
+      `https://ft-osint-api.duckdns.org/api/vehicle?key=ft-rahun2m&vehicle=${vehicle}`,
+      {
+        timeout: 10000
+      }
     );
 
     let data = JSON.stringify(response.data);
@@ -24,20 +27,26 @@ app.get("/vehicle", async (req, res) => {
     // Remove @ftgamer2
     data = data.replace(/@ftgamer2/gi, "");
 
-    // Add @vernexzzz
-    data = data + " @vernexzzz";
+    // Convert back to JSON
+    let jsonData = JSON.parse(data);
 
-    res.send(data);
+    // Add custom credit
+    jsonData.credit = "@vernexzzz";
+
+    res.json(jsonData);
 
   } catch (error) {
+    console.log(error.message);
+
     res.status(500).json({
-      error: "Failed to fetch vehicle data"
+      error: "API failed",
+      message: error.message
     });
   }
 });
 
 app.get("/", (req, res) => {
-  res.send("API is running");
+  res.send("API Running Successfully");
 });
 
 app.listen(PORT, () => {
