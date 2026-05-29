@@ -5,16 +5,25 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 
+// Home Route
+app.get("/", (req, res) => {
+  res.send("Vehicle API Running Successfully");
+});
+
+// Vehicle Route
 app.get("/vehicle", async (req, res) => {
   try {
+
     const vehicle = req.query.vehicle;
 
     if (!vehicle) {
       return res.status(400).json({
-        error: "Vehicle number is required"
+        status: false,
+        message: "Vehicle number required"
       });
     }
 
+    // Fetch original API
     const response = await axios.get(
       `https://ft-osint-api.duckdns.org/api/vehicle?key=ft-rahun2m&vehicle=${vehicle}`,
       {
@@ -24,31 +33,34 @@ app.get("/vehicle", async (req, res) => {
 
     let data = JSON.stringify(response.data);
 
-    // Remove @ftgamer2
+    // Remove text
     data = data.replace(/@ftgamer2/gi, "");
+    data = data.replace(/FtGamer2/gi, "");
+    data = data.replace(/FtGamer/gi, "");
 
     // Convert back to JSON
     let jsonData = JSON.parse(data);
 
-    // Add custom credit
+    // Add your custom tag
     jsonData.credit = "@vernexzzz";
 
-    res.json(jsonData);
+    // Send response
+    res.status(200).json(jsonData);
 
   } catch (error) {
+
     console.log(error.message);
 
     res.status(500).json({
-      error: "API failed",
+      status: false,
+      error: "API Failed",
       message: error.message
     });
+
   }
 });
 
-app.get("/", (req, res) => {
-  res.send("API Running Successfully");
-});
-
+// Start Server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
